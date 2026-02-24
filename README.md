@@ -1,6 +1,6 @@
 # hack-fiap233-infra
 
-Infraestrutura Terraform para provisionar um cluster EKS na AWS com arquitetura de microsserviços, usando API Gateway como ponto de entrada público.
+Infraestrutura Terraform para provisionar um cluster EKS na AWS com arquitetura de microsserviços, usando API Gateway como ponto de entrada público...
 
 ## Arquitetura
 
