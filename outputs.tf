@@ -76,3 +76,17 @@ output "vpc_id" {
   description = "ID of the VPC"
   value       = module.vpc.vpc_id
 }
+
+###############################################################################
+# JWT
+###############################################################################
+
+output "jwt_secret_name" {
+  description = "Secrets Manager secret name for JWT signing key"
+  value       = aws_secretsmanager_secret.jwt_secret.name
+}
+
+output "jwt_secret_arn" {
+  description = "Secrets Manager secret ARN for JWT signing key"
+  value       = aws_secretsmanager_secret.jwt_secret.arn
+}

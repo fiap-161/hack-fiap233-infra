@@ -22,3 +22,14 @@ variable "nlb_listener_videos_arn" {
   description = "ARN of the NLB listener for the videos service"
   type        = string
 }
+
+variable "lambda_role_arn" {
+  description = "IAM role ARN for the Lambda authorizer (LabRole)"
+  type        = string
+}
+
+variable "jwt_secret" {
+  description = "JWT signing secret for the Lambda authorizer"
+  type        = string
+  sensitive   = true
+}

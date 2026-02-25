@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.5"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
+    }
   }
 
   # The bucket must exist before running terraform init.
@@ -89,6 +93,24 @@ module "nlb" {
 }
 
 ###############################################################################
+# JWT Secret (for Lambda Authorizer + Users service)
+###############################################################################
+
+resource "random_password" "jwt_secret" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "jwt_secret" {
+  name = "${var.project_name}/jwt-secret"
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_secret" {
+  secret_id     = aws_secretsmanager_secret.jwt_secret.id
+  secret_string = random_password.jwt_secret.result
+}
+
+###############################################################################
 # API Gateway
 ###############################################################################
 
@@ -100,6 +122,8 @@ module "api_gateway" {
   security_group_ids      = [module.vpc.sg_vpc_link_id]
   nlb_listener_users_arn  = module.nlb.listener_users_arn
   nlb_listener_videos_arn = module.nlb.listener_videos_arn
+  lambda_role_arn         = data.aws_iam_role.lab_role.arn
+  jwt_secret              = random_password.jwt_secret.result
 }
 
 ###############################################################################

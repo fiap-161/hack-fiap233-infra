@@ -12,3 +12,8 @@ output "vpc_link_id" {
   description = "ID of the VPC Link"
   value       = aws_apigatewayv2_vpc_link.main.id
 }
+
+output "authorizer_id" {
+  description = "ID of the Lambda authorizer"
+  value       = aws_apigatewayv2_authorizer.jwt.id
+}
