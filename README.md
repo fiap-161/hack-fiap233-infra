@@ -492,14 +492,24 @@ Este projeto usa o role `LabRole` existente na conta AWS Academy. Nenhum IAM Rol
 
 ## Destruir a Infraestrutura
 
-```bash
-# Remover pods primeiro
-kubectl delete -f ../hack-fiap233-users/k8s/
-kubectl delete -f ../hack-fiap233-videos/k8s/
+**Forma mais simples** (na raiz de `hack-fiap233-infra`):
 
-# Destruir a infraestrutura
+```bash
+./scripts/destroy_infra.sh
+```
+
+O script faz na ordem: (1) remove os recursos no EKS (users/videos), (2) `terraform destroy` da infra principal, (3) `terraform destroy` do bootstrap (bucket S3 do state).
+
+**Manual**, se preferir:
+
+```bash
+# 1. Remover workloads do EKS (para o cluster poder ser destruído)
+kubectl delete -f ../hack-fiap233-users/k8s/ --ignore-not-found
+kubectl delete -f ../hack-fiap233-videos/k8s/ --ignore-not-found
+
+# 2. Na raiz do repo: destruir a infraestrutura (EKS, ECR, RDS, API Gateway, etc.)
 terraform destroy
 
-# Destruir o bucket de state (opcional)
+# 3. Destruir o bucket de state
 cd bootstrap && terraform destroy
 ```

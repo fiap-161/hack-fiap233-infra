@@ -8,6 +8,7 @@ Este diretório contém scripts de infraestrutura e de **migrations** dos bancos
 |--------|-----------|
 | `setup_infra.sh` | Bootstrap (S3 state) + `terraform apply` — provisiona toda a infra. |
 | `deploy_services.sh` | Configura kubectl, login ECR, build/push das imagens, atualiza manifests e aplica no EKS. |
+| `destroy_infra.sh` | Destrói tudo na ordem: recursos no EKS → infra principal → bucket do state. |
 | `run_migrations.sh` | Aplica as migrations SQL nos bancos (ver seção abaixo). |
 
 Uso rápido (a partir da raiz de `hack-fiap233-infra`): `./scripts/setup_infra.sh` e em seguida `./scripts/deploy_services.sh`. Ver [README principal](../README.md#passo-a-passo).
@@ -19,6 +20,7 @@ scripts/
 ├── README.md            # Este arquivo
 ├── setup_infra.sh       # Bootstrap + Terraform apply
 ├── deploy_services.sh   # Deploy dos microsserviços no EKS
+├── destroy_infra.sh     # Destrói toda a infra na ordem correta
 ├── run_migrations.sh    # Aplica todas as migrations (users + videos)
 
 migrations/
