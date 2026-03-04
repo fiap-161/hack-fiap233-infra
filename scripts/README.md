@@ -1,14 +1,25 @@
 # Scripts e migrations
 
-Este diretório contém scripts para aplicar as **migrations** dos bancos de dados (usersdb e videosdb) provisionados pelo Terraform.
+Este diretório contém scripts de infraestrutura e de **migrations** dos bancos (usersdb e videosdb).
+
+## Scripts de infra e deploy
+
+| Script | Descrição |
+|--------|-----------|
+| `setup_infra.sh` | Bootstrap (S3 state) + `terraform apply` — provisiona toda a infra. |
+| `deploy_services.sh` | Configura kubectl, login ECR, build/push das imagens, atualiza manifests e aplica no EKS. |
+| `run_migrations.sh` | Aplica as migrations SQL nos bancos (ver seção abaixo). |
+
+Uso rápido (a partir da raiz de `hack-fiap233-infra`): `./scripts/setup_infra.sh` e em seguida `./scripts/deploy_services.sh`. Ver [README principal](../README.md#passo-a-passo).
 
 ## Estrutura
 
 ```
 scripts/
-├── README.md           # Este arquivo
-├── run_migrations.sh   # Aplica todas as migrations (users + videos)
-└── (outros scripts futuros)
+├── README.md            # Este arquivo
+├── setup_infra.sh       # Bootstrap + Terraform apply
+├── deploy_services.sh   # Deploy dos microsserviços no EKS
+├── run_migrations.sh    # Aplica todas as migrations (users + videos)
 
 migrations/
 ├── users/              # SQL para o banco usersdb

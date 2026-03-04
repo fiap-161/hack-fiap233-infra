@@ -13,20 +13,18 @@ provider "aws" {
   region = var.region
 }
 
+data "aws_caller_identity" "current" {}
+
+locals {
+  bucket_name = "hack-fiap233-tfstate-${data.aws_caller_identity.current.account_id}"
+}
+
 resource "aws_s3_bucket" "tfstate" {
-  bucket        = var.bucket_name
+  bucket        = local.bucket_name
   force_destroy = true
 
   tags = {
-    Name    = var.bucket_name
+    Name    = local.bucket_name
     Project = var.project_name
-  }
-}
-
-resource "aws_s3_bucket_versioning" "tfstate" {
-  bucket = aws_s3_bucket.tfstate.id
-
-  versioning_configuration {
-    status = "Enabled"
   }
 }
