@@ -105,6 +105,8 @@ ecr_users_url      = "432686365376.dkr.ecr.us-east-1.amazonaws.com/hack-fiap233-
 ecr_videos_url     = "432686365376.dkr.ecr.us-east-1.amazonaws.com/hack-fiap233-videos"
 rds_users_endpoint = "..."
 rds_videos_endpoint = "..."
+redis_endpoint      = "hack-fiap233-redis.xxxxx.cache.amazonaws.com"
+redis_port          = 6379
 ```
 
 ### Passo 3 — Configurar kubectl
@@ -210,6 +212,19 @@ aws secretsmanager get-secret-value \
   --query SecretString \
   --output text | jq .
 ```
+
+---
+
+## Cache (Redis)
+
+O requisito de stack **PostgreSQL + Redis** é atendido com **Amazon ElastiCache for Redis** em modo single node (1 réplica), em rede privada.
+
+- **Provisionamento:** módulo `modules/elasticache` — subnet group (subnets privadas), security group (acesso apenas a partir dos nós EKS), replication group Redis.
+- **Endpoint e porta:** após `terraform apply`, use os outputs `redis_endpoint` e `redis_port`. As aplicações no EKS (Users, Videos) devem usar essas variáveis para conectar ao Redis (ex.: cache de sessão/token ou cache da listagem de status de vídeos).
+- **Variáveis:** `redis_node_type` (default `cache.t3.micro`), `redis_num_cache_clusters` (1), `redis_engine_version` (7.0), `redis_port` (6379).
+- **Uso nos serviços:** definir no serviço (ex.: Videos) o uso inicial — cache da listagem de status com TTL curto ou cache de sessão no Users. Configurar nos deployments via env: `REDIS_HOST`, `REDIS_PORT`.
+
+Sem auth token por padrão (transit_encryption_enabled = false); at-rest encryption está habilitada. Para produção com AUTH, pode-se adicionar `auth_token` no módulo e habilitar transit encryption.
 
 ---
 

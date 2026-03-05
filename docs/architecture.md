@@ -155,8 +155,8 @@ Decisão relacionada: [ADR-0003 Database per service](adr/0003-database-per-serv
 
 ## 6. Evolução prevista (roadmap)
 
-- **Fase 2**: Mensageria — **RabbitMQ** no EKS (Helm), fila `video.process` e DLQ `video.process.dlq`; credenciais no Secrets Manager. Decisão em [ADR-0004](adr/0004-rabbitmq-for-video-processing-queue.md).
-- **Fase 3**: Redis (cache).
+- **Fase 2**: Mensageria — **RabbitMQ** no EKS (Helm), fila `video.process` e DLQ `video.process.dlq`; credenciais no Secrets Manager; fila de processamento de vídeo e garantia de não perda de requisição. Decisão em [ADR-0004](adr/0004-rabbitmq-for-video-processing-queue.md).
+- **Fase 3**: **Redis** (cache) — ElastiCache for Redis (módulo `elasticache`), single node em rede privada; outputs `redis_endpoint`, `redis_port` para os serviços (cache de sessão ou listagem de status).
 - **Fase 4**: Notificação do cliente via AWS (SNS + Lambda + SES) em caso de erro de processamento.
 - **Fase 5**: Monitoramento (Prometheus + Grafana).
 - **Fase 6**: HPA e resiliência (escalabilidade automática dos Pods).
