@@ -36,6 +36,12 @@ resource "aws_apigatewayv2_integration" "users" {
   integration_method = "ANY"
   connection_type    = "VPC_LINK"
   connection_id      = aws_apigatewayv2_vpc_link.main.id
+
+  # Forward JWT claims from Lambda authorizer to the backend (Users service can trust these headers)
+  request_parameters = {
+    "overwrite:header.X-User-Id"    = "$context.authorizer.user_id"
+    "overwrite:header.X-User-Email" = "$context.authorizer.email"
+  }
 }
 
 resource "aws_apigatewayv2_integration" "videos" {
@@ -45,6 +51,12 @@ resource "aws_apigatewayv2_integration" "videos" {
   integration_method = "ANY"
   connection_type    = "VPC_LINK"
   connection_id      = aws_apigatewayv2_vpc_link.main.id
+
+  # Forward JWT claims from Lambda authorizer to the backend (Videos service reads X-User-Id, no JWT validation needed)
+  request_parameters = {
+    "overwrite:header.X-User-Id"    = "$context.authorizer.user_id"
+    "overwrite:header.X-User-Email" = "$context.authorizer.email"
+  }
 }
 
 ###############################################################################

@@ -17,7 +17,14 @@ exports.handler = async (event) => {
     if (!payload) {
       return { isAuthorized: false };
     }
-    return { isAuthorized: true };
+    // Context is forwarded to the backend as headers (e.g. X-User-Id). Use underscores in keys.
+    return {
+      isAuthorized: true,
+      context: {
+        user_id: String(payload.sub ?? ""),
+        email: String(payload.email ?? ""),
+      },
+    };
   } catch (err) {
     console.error("JWT verification failed:", err.message);
     return { isAuthorized: false };
