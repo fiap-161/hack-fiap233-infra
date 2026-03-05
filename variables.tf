@@ -131,3 +131,43 @@ variable "rds_engine_version" {
   type        = string
   default     = "16.6"
 }
+
+###############################################################################
+# RabbitMQ (mensageria — Fase 2)
+###############################################################################
+
+variable "rabbitmq_namespace" {
+  description = "Kubernetes namespace for RabbitMQ"
+  type        = string
+  default     = "messaging"
+}
+
+variable "rabbitmq_username" {
+  description = "RabbitMQ username for application connections"
+  type        = string
+  default     = "application"
+}
+
+variable "rabbitmq_queue_process" {
+  description = "Queue name for video processing jobs"
+  type        = string
+  default     = "video.process"
+}
+
+variable "rabbitmq_queue_dlq" {
+  description = "Dead-letter queue name for failed jobs"
+  type        = string
+  default     = "video.process.dlq"
+}
+
+variable "rabbitmq_helm_chart_version" {
+  description = "Bitnami RabbitMQ Helm chart version"
+  type        = string
+  default     = "14.0.0"
+}
+
+variable "rabbitmq_replica_count" {
+  description = "Number of RabbitMQ replicas (1 for simplicity)"
+  type        = number
+  default     = 1
+}
