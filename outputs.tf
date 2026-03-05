@@ -90,3 +90,56 @@ output "jwt_secret_arn" {
   description = "Secrets Manager secret ARN for JWT signing key"
   value       = aws_secretsmanager_secret.jwt_secret.arn
 }
+
+###############################################################################
+# RabbitMQ (mensageria)
+###############################################################################
+
+output "rabbitmq_host" {
+  description = "RabbitMQ host (K8s service DNS) for AMQP connections from pods"
+  value       = module.rabbitmq.host
+}
+
+output "rabbitmq_port" {
+  description = "RabbitMQ AMQP port"
+  value       = module.rabbitmq.port
+}
+
+output "rabbitmq_queue_process" {
+  description = "Queue name for video processing jobs (use in Videos service)"
+  value       = module.rabbitmq.queue_process
+}
+
+output "rabbitmq_queue_dlq" {
+  description = "Dead-letter queue name for failed jobs"
+  value       = module.rabbitmq.queue_dlq
+}
+
+output "rabbitmq_secret_name" {
+  description = "Secrets Manager secret name for RabbitMQ credentials"
+  value       = module.rabbitmq.secret_name
+}
+
+output "rabbitmq_secret_arn" {
+  description = "Secrets Manager secret ARN for RabbitMQ credentials"
+  value       = module.rabbitmq.secret_arn
+}
+
+output "rabbitmq_namespace" {
+  description = "Kubernetes namespace where RabbitMQ is deployed"
+  value       = module.rabbitmq.namespace
+}
+
+###############################################################################
+# Redis (cache)
+###############################################################################
+
+output "redis_endpoint" {
+  description = "Redis primary endpoint (host) for applications in EKS"
+  value       = module.elasticache_redis.endpoint
+}
+
+output "redis_port" {
+  description = "Redis port"
+  value       = module.elasticache_redis.port
+}

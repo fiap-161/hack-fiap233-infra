@@ -14,6 +14,14 @@ terraform {
       source  = "hashicorp/archive"
       version = "~> 2.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.24"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12"
+    }
   }
 
   # The bucket must exist before running terraform init.
@@ -29,8 +37,32 @@ provider "aws" {
   region = var.region
 }
 
+# Kubernetes and Helm providers for EKS (used by RabbitMQ module).
+# Data sources depend on EKS; run `terraform apply` twice if RabbitMQ fails on first run (cluster not ready).
+data "aws_eks_cluster" "main" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "main" {
+  name = module.eks.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.main.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.main.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.main.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.main.token
+  }
+}
+
 ###############################################################################
-# LabRole — used everywhere instead of creating IAM roles (AWS Academy)
+# LabRole
 ###############################################################################
 
 data "aws_iam_role" "lab_role" {
@@ -190,4 +222,39 @@ module "rds_videos" {
   db_name            = "videosdb"
   db_username        = var.rds_db_username
   engine_version     = var.rds_engine_version
+}
+
+###############################################################################
+# Mensageria — RabbitMQ 
+###############################################################################
+
+module "rabbitmq" {
+  source = "./modules/rabbitmq"
+
+  project_name       = var.project_name
+  namespace          = var.rabbitmq_namespace
+  rabbitmq_username  = var.rabbitmq_username
+  queue_process      = var.rabbitmq_queue_process
+  queue_dlq          = var.rabbitmq_queue_dlq
+  helm_chart_version = var.rabbitmq_helm_chart_version
+  replica_count      = var.rabbitmq_replica_count
+
+  depends_on = [module.eks]
+}
+
+###############################################################################
+# Cache — ElastiCache Redis
+###############################################################################
+
+module "elasticache_redis" {
+  source = "./modules/elasticache"
+
+  project_name               = var.project_name
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.private_subnet_ids
+  allowed_security_group_id  = module.vpc.sg_eks_nodes_id
+  node_type                  = var.redis_node_type
+  num_cache_clusters         = var.redis_num_cache_clusters
+  engine_version             = var.redis_engine_version
+  port                       = var.redis_port
 }

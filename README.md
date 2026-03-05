@@ -1,6 +1,10 @@
 # hack-fiap233-infra
 
-Infraestrutura Terraform para provisionar um cluster EKS na AWS com arquitetura de microsserviços, usando API Gateway como ponto de entrada público...
+Infraestrutura Terraform para provisionar um cluster EKS na AWS com arquitetura de microsserviços, usando API Gateway como ponto de entrada público.
+
+- **Documentação da arquitetura:** [docs/architecture.md](docs/architecture.md) (visão C4, diagramas, fluxo de autorização).
+- **Decisões de arquitetura (ADR):** [docs/adr/](docs/adr/).
+- **Scripts de banco (migrations):** [scripts/README.md](scripts/README.md).
 
 ## Arquitetura
 
@@ -19,6 +23,19 @@ NLB interno (private subnets)
    └── porta 8082 → NodePort 30082 → PODs do serviço de Vídeos  → RDS Postgres (videosdb)
 ```
 
+### Autorização (Lambda Authorizer)
+
+As rotas protegidas (`/users/*` exceto login/register, `/videos/*`) passam por um **Lambda Authorizer** que:
+
+1. Lê o header `Authorization: Bearer <JWT>`
+2. Valida assinatura e expiração do JWT usando o mesmo `JWT_SECRET` do Secrets Manager
+3. Retorna `isAuthorized: true` e um **context** com `user_id` (claim `sub`) e `email`
+4. O API Gateway repassa esse context aos backends como **headers**:
+   - **`X-User-Id`** — ID do usuário (claim `sub` do JWT)
+   - **`X-User-Email`** — e-mail do usuário
+
+Os serviços **Users** e **Videos** não precisam validar JWT nem ter o secret: basta ler `X-User-Id` (e opcionalmente `X-User-Email`) do request. A validação é feita de forma centralizada na AWS.
+
 ## Pré-requisitos
 
 - Terraform >= 1.5.0
@@ -32,19 +49,28 @@ NLB interno (private subnets)
 hackathon/
 ├── hack-fiap233-infra/        # Este repositório (infraestrutura)
 │   ├── bootstrap/             # S3 bucket para remote state
+│   ├── docs/                  # Documentação da arquitetura
+│   │   ├── architecture.md   # Visão C4, diagramas, fluxos
+│   │   └── adr/              # Architecture Decision Records
+│   ├── migrations/            # Scripts SQL versionados (fonte de verdade do schema)
+│   │   ├── users/             # usersdb
+│   │   └── videos/            # videosdb
+│   ├── scripts/               # Scripts de aplicação (migrations, etc.)
+│   │   ├── README.md
+│   │   └── run_migrations.sh
 │   ├── modules/               # Módulos Terraform (vpc, eks, nlb, api_gateway, rds)
-│   ├── main.tf                # Composição dos módulos + ECR repos
+│   ├── main.tf
 │   ├── variables.tf
 │   ├── outputs.tf
 │   └── terraform.tfvars
 ├── hack-fiap233-users/        # Microsserviço de usuários (Go)
 │   ├── main.go
 │   ├── Dockerfile
-│   └── k8s/                   # Manifests Kubernetes
+│   └── k8s/
 └── hack-fiap233-videos/       # Microsserviço de vídeos (Go)
     ├── main.go
     ├── Dockerfile
-    └── k8s/                   # Manifests Kubernetes
+    └── k8s/
 ```
 
 ---
@@ -79,6 +105,8 @@ ecr_users_url      = "432686365376.dkr.ecr.us-east-1.amazonaws.com/hack-fiap233-
 ecr_videos_url     = "432686365376.dkr.ecr.us-east-1.amazonaws.com/hack-fiap233-videos"
 rds_users_endpoint = "..."
 rds_videos_endpoint = "..."
+redis_endpoint      = "hack-fiap233-redis.xxxxx.cache.amazonaws.com"
+redis_port          = 6379
 ```
 
 ### Passo 3 — Configurar kubectl
@@ -184,6 +212,56 @@ aws secretsmanager get-secret-value \
   --query SecretString \
   --output text | jq .
 ```
+
+---
+
+## Cache (Redis)
+
+O requisito de stack **PostgreSQL + Redis** é atendido com **Amazon ElastiCache for Redis** em modo single node (1 réplica), em rede privada.
+
+- **Provisionamento:** módulo `modules/elasticache` — subnet group (subnets privadas), security group (acesso apenas a partir dos nós EKS), replication group Redis.
+- **Endpoint e porta:** após `terraform apply`, use os outputs `redis_endpoint` e `redis_port`. As aplicações no EKS (Users, Videos) devem usar essas variáveis para conectar ao Redis (ex.: cache de sessão/token ou cache da listagem de status de vídeos).
+- **Variáveis:** `redis_node_type` (default `cache.t3.micro`), `redis_num_cache_clusters` (1), `redis_engine_version` (7.0), `redis_port` (6379).
+- **Uso nos serviços:** definir no serviço (ex.: Videos) o uso inicial — cache da listagem de status com TTL curto ou cache de sessão no Users. Configurar nos deployments via env: `REDIS_HOST`, `REDIS_PORT`.
+
+Sem auth token por padrão (transit_encryption_enabled = false); at-rest encryption está habilitada. Para produção com AUTH, pode-se adicionar `auth_token` no módulo e habilitar transit encryption.
+
+---
+
+## Scripts de banco / Migrations
+
+Os schemas dos bancos **usersdb** e **videosdb** estão definidos em **migrations versionadas** em `migrations/users/` e `migrations/videos/`. São a fonte única de verdade do schema para a infraestrutura.
+
+**Como aplicar:** execute de um ambiente com acesso de rede aos RDS (por exemplo, dentro da VPC ou via port-forward de um Pod). Opções:
+
+1. **Variáveis de ambiente** — defina `USERS_DB_HOST`, `USERS_DB_PORT`, `USERS_DB_USER`, `USERS_DB_PASSWORD`, `USERS_DB_NAME` (e o mesmo para `VIDEOS_DB_*`) e rode:
+   ```bash
+   ./scripts/run_migrations.sh
+   ```
+2. **Secrets Manager** — defina `MIGRATE_USERS_SECRET=hack-fiap233/users/db-credentials` e `MIGRATE_VIDEOS_SECRET=hack-fiap233/videos/db-credentials` (e `AWS_REGION`) e execute o mesmo script. Requer AWS CLI e `jq`.
+
+Documentação completa: [scripts/README.md](scripts/README.md).
+
+### O que fazer ao alterar o banco de dados
+
+Quando for necessário implementar uma alteração de schema (nova coluna, tabela, índice, etc.):
+
+1. **Criar uma nova migration** no repositório de infra:
+   - **Users DB:** novo arquivo em `migrations/users/` com nome ordenado, ex.: `002_add_notification_preference.sql`.
+   - **Videos DB:** novo arquivo em `migrations/videos/`, ex.: `002_add_user_id_and_status.sql`.
+   - Usar apenas DDL compatível com o que já existe (evitar dropar dados em produção; preferir `ADD COLUMN`, `CREATE INDEX`, novas tabelas).
+
+2. **Documentar no próprio arquivo SQL** (comentário no topo): descrição da alteração e, se relevante, dependência de alguma migration anterior.
+
+3. **Atualizar o código do microsserviço** (hack-fiap233-users ou hack-fiap233-videos) para usar o novo schema: modelos, queries, migrations no startup (se ainda houver) devem refletir o mesmo schema.
+
+4. **Aplicar a migration** em cada ambiente (dev, staging, prod):
+   - De um host com acesso ao RDS, rodar `./scripts/run_migrations.sh` (o script executa todos os `.sql` em ordem lexicográfica, então `002_...` roda após `001_...`).
+   - Ou aplicar manualmente com `psql` nos ambientes em que o script não tiver acesso à rede.
+
+5. **Fazer deploy do(s) serviço(s)** após o schema estar aplicado, para que a nova versão do código use as novas colunas/tabelas.
+
+**Ordem recomendada:** migration na infra → aplicar no banco → deploy do serviço. Evitar deploy do serviço antes de aplicar a migration (pode quebrar se o código passar a depender do novo schema).
 
 ---
 
