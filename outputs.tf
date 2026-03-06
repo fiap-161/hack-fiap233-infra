@@ -129,3 +129,17 @@ output "rabbitmq_namespace" {
   description = "Kubernetes namespace where RabbitMQ is deployed"
   value       = module.rabbitmq.namespace
 }
+
+###############################################################################
+# Redis (cache)
+###############################################################################
+
+output "redis_endpoint" {
+  description = "Redis primary endpoint (host) for applications in EKS"
+  value       = module.elasticache_redis.endpoint
+}
+
+output "redis_port" {
+  description = "Redis port"
+  value       = module.elasticache_redis.port
+}

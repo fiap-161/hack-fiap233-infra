@@ -62,7 +62,7 @@ provider "helm" {
 }
 
 ###############################################################################
-# LabRole — used everywhere instead of creating IAM roles (AWS Academy)
+# LabRole
 ###############################################################################
 
 data "aws_iam_role" "lab_role" {
@@ -225,7 +225,7 @@ module "rds_videos" {
 }
 
 ###############################################################################
-# Mensageria — RabbitMQ (Fase 2)
+# Mensageria — RabbitMQ 
 ###############################################################################
 
 module "rabbitmq" {
@@ -240,4 +240,21 @@ module "rabbitmq" {
   replica_count      = var.rabbitmq_replica_count
 
   depends_on = [module.eks]
+}
+
+###############################################################################
+# Cache — ElastiCache Redis
+###############################################################################
+
+module "elasticache_redis" {
+  source = "./modules/elasticache"
+
+  project_name               = var.project_name
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.private_subnet_ids
+  allowed_security_group_id  = module.vpc.sg_eks_nodes_id
+  node_type                  = var.redis_node_type
+  num_cache_clusters         = var.redis_num_cache_clusters
+  engine_version             = var.redis_engine_version
+  port                       = var.redis_port
 }
