@@ -54,6 +54,18 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      # Garante que VPC e EKS existam antes do plan (data sources aws_eks_cluster dependem disso).
+      # Sem isso, o plan falha em PR quando o state ainda não tem o cluster.
+      - name: Terraform Bootstrap Infra (se state vazio)
+        run: |
+          if ! terraform state list 2>/dev/null | grep -q 'module.eks'; then
+            terraform apply -auto-approve \
+              -target=module.vpc \
+              -target=module.eks \
+              -target=module.nlb
+          fi
+        if: github.event_name == 'pull_request'
+
       - name: Terraform Plan
         run: terraform plan -out=tfplan
         if: github.event_name == 'pull_request'
