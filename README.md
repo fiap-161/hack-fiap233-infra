@@ -75,7 +75,90 @@ hackathon/
 
 ---
 
-## Passo a Passo Completo
+## Passo a Passo
+
+### Caminho rápido (recomendado)
+
+Três comandos cobrem infraestrutura e deploy dos microsserviços. **Execute sempre na raiz do repositório** (pasta `hack-fiap233-infra`), não dentro de `scripts/`:
+
+```bash
+cd hack-fiap233-infra   # se ainda não estiver na raiz do repositório
+
+# Se aparecer "permission denied", dê permissão de execução uma vez:
+chmod +x scripts/setup_infra.sh scripts/deploy_services.sh
+
+# 1. Infraestrutura (bootstrap + Terraform apply)
+./scripts/setup_infra.sh
+
+# 2. Deploy dos serviços (kubectl, ECR login, build, push, apply no EKS)
+./scripts/deploy_services.sh
+```
+
+No Mac com Apple Silicon (M1/M2/M3), use build multi-plataforma:
+
+```bash
+DOCKER_PLATFORM=linux/amd64 ./scripts/deploy_services.sh
+```
+
+#### Se deu 403 (Access Denied) no bootstrap
+
+O LabRole da AWS Academy pode não ter permissão para versionamento do S3. O bootstrap já foi ajustado para não usar versionamento. Se você rodou o bootstrap antes dessa alteração, o state ainda pode referenciar o recurso antigo; nesse caso, remova-o do state e rode de novo:
+
+```bash
+cd hack-fiap233-infra/bootstrap
+terraform init
+terraform state rm 'aws_s3_bucket_versioning.tfstate'   # só remove do state, não chama a AWS
+cd ..
+./scripts/setup_infra.sh
+```
+
+#### Se deu 409 (BucketAlreadyExists)
+
+Nomes de bucket S3 são globais na AWS. O bootstrap passou a usar um nome único por conta: `hack-fiap233-tfstate-<ACCOUNT_ID>`. Rode de novo `./scripts/setup_infra.sh`; o script já configura o backend da infra principal com o bucket criado no bootstrap.
+
+#### Como saber se o setup aplicou com sucesso
+
+- **Bootstrap:** ao final deve aparecer `Apply complete! Resources: X added, 0 changed, 0 destroyed` e não deve haver mensagem de erro em vermelho.
+- **Infra principal:** o mesmo: `Apply complete!` e, em seguida, você pode rodar `terraform output` na raiz do repo e ver `api_gateway_url`, `eks_cluster_name`, `ecr_users_url`, etc.
+- **Teste rápido:** depois do setup completo, `kubectl get nodes` (após o passo 2, deploy) deve listar os nodes do EKS.
+
+É seguro executar `./scripts/setup_infra.sh` várias vezes: o Terraform só altera o que for necessário (idempotente).
+
+### 3. Testar
+
+```bash
+cd hack-fiap233-infra
+API_URL=$(terraform output -raw api_gateway_url)
+curl "${API_URL}users/health"
+curl "${API_URL}videos/health"
+curl "${API_URL}users/hello"
+curl "${API_URL}videos/hello"
+```
+
+Respostas esperadas:
+
+```json
+{"message":"Hello from Users Service","method":"GET","path":"/users/hello"}
+{"message":"Hello from Videos Service","method":"GET","path":"/videos/hello"}
+```
+
+---
+
+## Passo a Passo Completo (manual)
+
+Se preferir executar cada etapa à mão (útil para debug ou aprendizado):
+
+| # | O que faz |
+|---|-----------|
+| 1 | Bucket S3 para remote state (bootstrap) |
+| 2 | Provisionar infra (EKS, ECR, RDS, API Gateway) |
+| 3 | Configurar `kubectl` |
+| 4 | Login no ECR |
+| 5 | Build e push das imagens Docker |
+| 6 | Atualizar `image` nos manifests K8s |
+| 7 | Deploy no EKS (`kubectl apply`) |
+| 8 | Testar (curl) |
+
 
 ### Passo 1 — Criar o bucket S3 para remote state
 
@@ -409,14 +492,24 @@ Este projeto usa o role `LabRole` existente na conta AWS Academy. Nenhum IAM Rol
 
 ## Destruir a Infraestrutura
 
-```bash
-# Remover pods primeiro
-kubectl delete -f ../hack-fiap233-users/k8s/
-kubectl delete -f ../hack-fiap233-videos/k8s/
+**Forma mais simples** (na raiz de `hack-fiap233-infra`):
 
-# Destruir a infraestrutura
+```bash
+./scripts/destroy_infra.sh
+```
+
+O script faz na ordem: (1) remove os recursos no EKS (users/videos), (2) `terraform destroy` da infra principal, (3) `terraform destroy` do bootstrap (bucket S3 do state).
+
+**Manual**, se preferir:
+
+```bash
+# 1. Remover workloads do EKS (para o cluster poder ser destruído)
+kubectl delete -f ../hack-fiap233-users/k8s/ --ignore-not-found
+kubectl delete -f ../hack-fiap233-videos/k8s/ --ignore-not-found
+
+# 2. Na raiz do repo: destruir a infraestrutura (EKS, ECR, RDS, API Gateway, etc.)
 terraform destroy
 
-# Destruir o bucket de state (opcional)
+# 3. Destruir o bucket de state
 cd bootstrap && terraform destroy
 ```
