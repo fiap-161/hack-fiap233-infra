@@ -190,6 +190,8 @@ rds_users_endpoint = "..."
 rds_videos_endpoint = "..."
 redis_endpoint      = "hack-fiap233-redis.xxxxx.cache.amazonaws.com"
 redis_port          = 6379
+prometheus_namespace = "monitoring"
+prometheus_url       = "http://prometheus-server.monitoring.svc.cluster.local:80"
 ```
 
 ### Passo 3 — Configurar kubectl
@@ -308,6 +310,18 @@ O requisito de stack **PostgreSQL + Redis** é atendido com **Amazon ElastiCache
 - **Uso nos serviços:** definir no serviço (ex.: Videos) o uso inicial — cache da listagem de status com TTL curto ou cache de sessão no Users. Configurar nos deployments via env: `REDIS_HOST`, `REDIS_PORT`.
 
 Sem auth token por padrão (transit_encryption_enabled = false); at-rest encryption está habilitada. Para produção com AUTH, pode-se adicionar `auth_token` no módulo e habilitar transit encryption.
+
+---
+
+## Monitoramento (Prometheus — Fase 5)
+
+O <br>Prometheus</br> é implantado no namespace `monitoring` via Helm (chart `prometheus-community/prometheus`). Ele sobe junto com o `terraform apply`.
+
+- <br>Documentação</br> [docs/monitoring.md](docs/monitoring.md) (acesso, scrape, variáveis, próximos passos com Grafana).
+- <br>Acesso em dev:</br> `kubectl port-forward -n monitoring svc/prometheus-server 9090:80` e abrir http://localhost:9090.
+- <br>URL interna (para Grafana):</br> `http://prometheus-server.monitoring.svc.cluster.local:80`.
+
+Os serviços Users e Videos devem expor `/metrics` e usar anotações nos Pods/Services (`prometheus.io/scrape`, `prometheus.io/port`, `prometheus.io/path`) para serem descobertos.
 
 ---
 

@@ -14,9 +14,9 @@ variable "project_name" {
   default     = "hack-fiap233"
 }
 
-###############################################################################
+#############################################################################
 # VPC
-###############################################################################
+#############################################################################
 
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
@@ -198,4 +198,38 @@ variable "redis_port" {
   description = "Redis port"
   type        = number
   default     = 6379
+}
+
+############################################################################
+# Prometheus
+############################################################################
+
+variable "prometheus_namespace" {
+  description = "Kubernetes namespace for Prometheus"
+  type        = string
+  default     = "monitoring"
+}
+
+variable "prometheus_helm_chart_version" {
+  description = "Version of the prometheus-community Prometheus Helm chart"
+  type        = string
+  default     = "27.0.0"
+}
+
+variable "prometheus_retention" {
+  description = "Prometheus metrics retention period"
+  type        = string
+  default     = "15d"
+}
+
+variable "prometheus_storage_size" {
+  description = "Persistent volume size for Prometheus data"
+  type        = string
+  default     = "8Gi"
+}
+
+variable "prometheus_storage_class" {
+  description = "StorageClass for Prometheus PVC (null = cluster default)"
+  type        = string
+  default     = null
 }
