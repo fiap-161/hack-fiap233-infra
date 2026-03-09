@@ -158,7 +158,7 @@ Decisão relacionada: [ADR-0003 Database per service](adr/0003-database-per-serv
 - **Fase 2**: Mensageria — **RabbitMQ** no EKS (Helm), fila `video.process` e DLQ `video.process.dlq`; credenciais no Secrets Manager; fila de processamento de vídeo e garantia de não perda de requisição. Decisão em [ADR-0004](adr/0004-rabbitmq-for-video-processing-queue.md).
 - **Fase 3**: **Redis** (cache) — ElastiCache for Redis (módulo `elasticache`), single node em rede privada; outputs `redis_endpoint`, `redis_port` para os serviços (cache de sessão ou listagem de status).
 - **Fase 4**: Notificação do cliente via AWS (SNS + Lambda + SES) em caso de erro de processamento.
-- **Fase 5**: **Prometheus** — namespace `monitoring`, Helm chart prometheus-community; descoberta de Pods/Services com anotações; persistência e recursos. Grafana (todo).
+- **Fase 5**: **Prometheus + Grafana** — namespace `monitoring`; Prometheus (Helm chart prometheus-community) com descoberta de Pods/Services por anotações, persistência e recursos; Grafana (Helm chart oficial) com datasource Prometheus pré-configurado e credenciais admin em Secret; pasta [monitoring/grafana-dashboards/](../monitoring/grafana-dashboards/) para dashboards como código.
 - **Fase 6**: HPA e resiliência (escalabilidade automática dos Pods).
 
 ---

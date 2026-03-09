@@ -192,6 +192,9 @@ redis_endpoint      = "hack-fiap233-redis.xxxxx.cache.amazonaws.com"
 redis_port          = 6379
 prometheus_namespace = "monitoring"
 prometheus_url       = "http://prometheus-server.monitoring.svc.cluster.local:80"
+grafana_namespace    = "monitoring"
+grafana_url          = "http://grafana.monitoring.svc.cluster.local"
+grafana_admin_secret_name = "grafana-admin-credentials"
 ```
 
 ### Passo 3 — Configurar kubectl
@@ -313,15 +316,17 @@ Sem auth token por padrão (transit_encryption_enabled = false); at-rest encrypt
 
 ---
 
-## Monitoramento (Prometheus — Fase 5)
+## Monitoramento (Prometheus + Grafana — Fase 5)
 
-O <br>Prometheus</br> é implantado no namespace `monitoring` via Helm (chart `prometheus-community/prometheus`). Ele sobe junto com o `terraform apply`.
+**Prometheus** e **Grafana** são implantados no namespace `monitoring` via Helm. Sobem junto com o `terraform apply`. O Grafana já vem com o datasource Prometheus configurado (URL interna do cluster).
 
-- <br>Documentação</br> [docs/monitoring.md](docs/monitoring.md) (acesso, scrape, variáveis, próximos passos com Grafana).
-- <br>Acesso em dev:</br> `kubectl port-forward -n monitoring svc/prometheus-server 9090:80` e abrir http://localhost:9090.
-- <br>URL interna (para Grafana):</br> `http://prometheus-server.monitoring.svc.cluster.local:80`.
+- **Documentação:** [docs/monitoring.md](docs/monitoring.md) (acesso, scrape, variáveis, credenciais).
+- **Prometheus em dev:** `kubectl port-forward -n monitoring svc/prometheus-server 9090:80` → http://localhost:9090.
+- **Grafana em dev:** `kubectl port-forward -n monitoring svc/grafana 3000:80` → http://localhost:3000.  
+  Senha admin: `kubectl get secret -n monitoring grafana-admin-credentials -o jsonpath='{.data.admin-password}' | base64 -d && echo`
+- **URL interna Prometheus (Grafana):** `http://prometheus-server.monitoring.svc.cluster.local:80`.
 
-Os serviços Users e Videos devem expor `/metrics` e usar anotações nos Pods/Services (`prometheus.io/scrape`, `prometheus.io/port`, `prometheus.io/path`) para serem descobertos.
+Os serviços Users e Videos devem expor `/metrics` e usar anotações nos Pods/Services (`prometheus.io/scrape`, `prometheus.io/port`, `prometheus.io/path`) para serem descobertos. Dashboards podem ser definidos em [monitoring/grafana-dashboards/](monitoring/grafana-dashboards/).
 
 ---
 
@@ -514,6 +519,13 @@ aws secretsmanager get-secret-value --secret-id hack-fiap233/users/db-credential
 | `node_port_videos` | `30082` | NodePort para videos |
 | `rds_instance_class` | `db.t3.micro` | Classe da instancia RDS |
 | `rds_engine_version` | `16.6` | Versao do PostgreSQL |
+| `prometheus_namespace` | `monitoring` | Namespace do Prometheus e Grafana |
+| `prometheus_helm_chart_version` | `27.0.0` | Versao do chart Prometheus |
+| `prometheus_retention` | `15d` | Retencao das metricas |
+| `prometheus_storage_size` | `8Gi` | Tamanho do PVC do Prometheus |
+| `grafana_helm_chart_version` | `8.3.3` | Versao do chart Grafana |
+| `grafana_storage_size` | `2Gi` | Tamanho do PVC do Grafana |
+| `grafana_admin_user` | `admin` | Usuario admin do Grafana |
 
 ## AWS Academy
 

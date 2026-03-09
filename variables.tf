@@ -233,3 +233,31 @@ variable "prometheus_storage_class" {
   type        = string
   default     = null
 }
+
+##################################################################
+# Grafana (monitoramento)
+###################################################################
+
+variable "grafana_helm_chart_version" {
+  description = "Version Grafana Helm chart"
+  type        = string
+  default     = "8.3.3"
+}
+
+variable "grafana_storage_size" {
+  description = "Persistent volume size for Grafana data/dashboards"
+  type        = string
+  default     = "2Gi"
+}
+
+variable "grafana_storage_class" {
+  description = "StorageClass for Grafana PVC (null = cluster default)"
+  type        = string
+  default     = null
+}
+
+variable "grafana_admin_user" {
+  description = "Grafana admin username"
+  type        = string
+  default     = "admin"
+}

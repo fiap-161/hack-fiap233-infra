@@ -275,3 +275,21 @@ module "prometheus" {
 
   depends_on = [module.eks]
 }
+
+########################################################
+# Monitoramento — Grafana
+########################################################
+
+module "grafana" {
+  source = "./modules/grafana"
+
+  project_name       = var.project_name
+  namespace          = var.prometheus_namespace
+  prometheus_url     = module.prometheus.prometheus_url
+  admin_user          = var.grafana_admin_user
+  helm_chart_version  = var.grafana_helm_chart_version
+  storage_size        = var.grafana_storage_size
+  storage_class       = var.grafana_storage_class
+
+  depends_on = [module.prometheus]
+}
