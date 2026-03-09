@@ -133,7 +133,7 @@ variable "rds_engine_version" {
 }
 
 ###############################################################################
-# RabbitMQ (mensageria — Fase 2)
+# RabbitMQ (mensageria)
 ###############################################################################
 
 variable "rabbitmq_namespace" {
@@ -170,4 +170,32 @@ variable "rabbitmq_replica_count" {
   description = "Number of RabbitMQ replicas (1 for simplicity)"
   type        = number
   default     = 1
+}
+
+###############################################################################
+# Redis (Cache)
+###############################################################################
+
+variable "redis_node_type" {
+  description = "ElastiCache node type"
+  type        = string
+  default     = "cache.t3.micro"
+}
+
+variable "redis_num_cache_clusters" {
+  description = "Number of cache nodes"
+  type        = number
+  default     = 1
+}
+
+variable "redis_engine_version" {
+  description = "Redis engine version"
+  type        = string
+  default     = "7.0"
+}
+
+variable "redis_port" {
+  description = "Redis port"
+  type        = number
+  default     = 6379
 }
