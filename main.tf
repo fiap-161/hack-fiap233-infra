@@ -258,3 +258,18 @@ module "elasticache_redis" {
   engine_version             = var.redis_engine_version
   port                       = var.redis_port
 }
+
+#############################################################################
+# Notificação — SNS + Lambda + SendGrid (erro no processamento de vídeo)
+#############################################################################
+
+module "notification" {
+  source = "./modules/notification"
+
+  project_name      = var.project_name
+  topic_name        = var.notification_topic_name
+  sender_email      = var.notification_sender_email
+  sender_name       = var.notification_sender_name
+  sendgrid_api_key  = var.sendgrid_api_key
+  email_subject     = var.notification_email_subject
+}

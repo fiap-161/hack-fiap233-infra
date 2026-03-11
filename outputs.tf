@@ -143,3 +143,17 @@ output "redis_port" {
   description = "Redis port"
   value       = module.elasticache_redis.port
 }
+
+#####################################################################
+# Notificação (SNS + Lambda + SES)
+######################################################################
+
+output "notification_sns_topic_arn" {
+  description = "ARN of the SNS topic for video-processing-failed (Videos worker publishes here on failure)"
+  value       = module.notification.sns_topic_arn
+}
+
+output "notification_sns_topic_name" {
+  description = "Name of the SNS topic for failure notifications"
+  value       = module.notification.sns_topic_name
+}

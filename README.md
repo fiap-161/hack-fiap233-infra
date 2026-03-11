@@ -190,6 +190,7 @@ rds_users_endpoint = "..."
 rds_videos_endpoint = "..."
 redis_endpoint      = "hack-fiap233-redis.xxxxx.cache.amazonaws.com"
 redis_port          = 6379
+notification_sns_topic_arn = "arn:aws:sns:us-east-1:xxxxx:hack-fiap233-video-processing-failed"
 ```
 
 ### Passo 3 — Configurar kubectl
@@ -311,6 +312,25 @@ Sem auth token por padrão (transit_encryption_enabled = false); at-rest encrypt
 
 ---
 
+## Notificação em caso de erro (SNS + Lambda + SendGrid)
+
+Videos publica no SNS (`user_id`, `user_email`, `video_id`, `error_message`); Lambda envia e-mail via SendGrid para `user_email`. Módulo: `modules/notification`. Output: `notification_sns_topic_arn`.
+
+**SendGrid (ambos os cenários):** conta em [sendgrid.com](https://sendgrid.com), remetente verificado (Single Sender), API Key com permissão Mail Send.
+
+### Produção (CI/CD)
+
+- **Variáveis:** GitHub Secrets `NOTIFICATION_SENDER_EMAIL`, `NOTIFICATION_SENDER_NAME`, `SENDGRID_API_KEY`. O workflow `.github/workflows/terraform.yml` já expõe como `TF_VAR_*`; não é necessário `terraform.tfvars` nem `export` no pipeline.
+- **Não commitar** a API key; usar apenas nas Secrets do repositório.
+
+### Teste local
+
+- **Variáveis:** o workflow não roda na sua máquina; é obrigatório passar os valores localmente:
+  - **Opção A:** `terraform.tfvars` com `notification_sender_email`, `notification_sender_name`, `sendgrid_api_key` (não commitar; adicionar a `.gitignore` se quiser).
+  - **Opção B:** `export TF_VAR_notification_sender_email=...`, `TF_VAR_notification_sender_name=...`, `TF_VAR_sendgrid_api_key=...` antes de `terraform apply`.
+
+---
+
 ## Scripts de banco / Migrations
 
 Os schemas dos bancos **usersdb** e **videosdb** estão definidos em **migrations versionadas** em `migrations/users/` e `migrations/videos/`. São a fonte única de verdade do schema para a infraestrutura.
@@ -353,10 +373,15 @@ Quando for necessário implementar uma alteração de schema (nova coluna, tabel
 Todos os passos podem ser automatizados. Configure estas secrets no repositório GitHub em **Settings > Secrets and variables > Actions**:
 
 | Secret | Descrição |
-|---|---|
+|--------|-----------|
 | `AWS_ACCESS_KEY_ID` | Access Key da conta AWS Academy |
 | `AWS_SECRET_ACCESS_KEY` | Secret Key da conta AWS Academy |
 | `AWS_SESSION_TOKEN` | Session Token da AWS Academy (rotaciona a cada sessão) |
+| `NOTIFICATION_SENDER_EMAIL` | E-mail remetente SendGrid (verificado no Single Sender). Usado como `TF_VAR_notification_sender_email`. |
+| `NOTIFICATION_SENDER_NAME` | Nome do remetente (ex.: FiapX Videos). Usado como `TF_VAR_notification_sender_name`. Opcional se usar default. |
+| `SENDGRID_API_KEY` | API key do SendGrid (Mail Send). Usado como `TF_VAR_sendgrid_api_key`. **Não commitar.** |
+
+Para **produção/CI:** o workflow `.github/workflows/terraform.yml` expõe as três últimas como `TF_VAR_*`. Para **teste local**, use `terraform.tfvars` ou `export TF_VAR_*` (ver seção Notificação acima).
 
 ### Workflow — Provisionar Infraestrutura
 
@@ -379,6 +404,10 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
   AWS_REGION: us-east-1
+  # Variáveis do Terraform para notificação (SendGrid)
+  TF_VAR_notification_sender_email: ${{ secrets.NOTIFICATION_SENDER_EMAIL }}
+  TF_VAR_notification_sender_name: ${{ secrets.NOTIFICATION_SENDER_NAME }}
+  TF_VAR_sendgrid_api_key: ${{ secrets.SENDGRID_API_KEY }}
 
 jobs:
   terraform:
@@ -500,6 +529,11 @@ aws secretsmanager get-secret-value --secret-id hack-fiap233/users/db-credential
 | `node_port_videos` | `30082` | NodePort para videos |
 | `rds_instance_class` | `db.t3.micro` | Classe da instancia RDS |
 | `rds_engine_version` | `16.6` | Versao do PostgreSQL |
+| `notification_topic_name` | `video-processing-failed` | Nome do topico SNS para falhas de processamento |
+| `notification_sender_email` | — (obrigatorio) | E-mail remetente (verificado no SendGrid Single Sender) |
+| `notification_sender_name` | `FiapX Videos` | Nome exibido como remetente |
+| `sendgrid_api_key` | — (obrigatorio) | API key do SendGrid (Mail Send). Passar por TF_VAR ou -var; nao commitar. |
+| `notification_email_subject` | `FiapX Videos — Erro no processamento do seu vídeo` | Assunto do e-mail de notificacao |
 
 ## AWS Academy
 

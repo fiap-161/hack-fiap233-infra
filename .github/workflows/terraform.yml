@@ -13,6 +13,9 @@ env:
   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
   AWS_REGION: us-east-1
   TF_VAR_region: us-east-1
+  TF_VAR_notification_sender_email: ${{ secrets.NOTIFICATION_SENDER_EMAIL }}
+  TF_VAR_notification_sender_name: ${{ secrets.NOTIFICATION_SENDER_NAME }}
+  TF_VAR_sendgrid_api_key: ${{ secrets.SENDGRID_API_KEY }}
 
 jobs:
   bootstrap:

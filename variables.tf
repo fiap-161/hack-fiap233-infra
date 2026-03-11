@@ -199,3 +199,36 @@ variable "redis_port" {
   type        = number
   default     = 6379
 }
+
+###############################################################################
+# Notificação (SNS + Lambda + SendGrid) — erro processamento de vídeo
+###############################################################################
+
+variable "notification_topic_name" {
+  description = "SNS topic name for video processing failure events"
+  type        = string
+  default     = "video-processing-failed"
+}
+
+variable "notification_sender_email" {
+  description = "Sender email (From)."
+  type        = string
+}
+
+variable "notification_sender_name" {
+  description = "Sender display name"
+  type        = string
+  default     = "FiapX Videos"
+}
+
+variable "sendgrid_api_key" {
+  description = "SendGrid API key (Mail Send). Pass via TF_VAR_sendgrid_api_key or -var"
+  type        = string
+  sensitive   = true
+}
+
+variable "notification_email_subject" {
+  description = "Subject line for video processing failure notification email"
+  type        = string
+  default     = "FiapX Videos — Erro no processamento do seu vídeo"
+}
