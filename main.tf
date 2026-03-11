@@ -258,3 +258,38 @@ module "elasticache_redis" {
   engine_version             = var.redis_engine_version
   port                       = var.redis_port
 }
+
+###########################################################################
+# Monitoramento — Prometheus (Fase 5)
+###########################################################################
+
+module "prometheus" {
+  source = "./modules/prometheus"
+
+  project_name       = var.project_name
+  namespace          = var.prometheus_namespace
+  helm_chart_version = var.prometheus_helm_chart_version
+  retention          = var.prometheus_retention
+  storage_size       = var.prometheus_storage_size
+  storage_class      = var.prometheus_storage_class
+
+  depends_on = [module.eks]
+}
+
+########################################################
+# Monitoramento — Grafana
+########################################################
+
+module "grafana" {
+  source = "./modules/grafana"
+
+  project_name       = var.project_name
+  namespace          = var.prometheus_namespace
+  prometheus_url     = module.prometheus.prometheus_url
+  admin_user          = var.grafana_admin_user
+  helm_chart_version  = var.grafana_helm_chart_version
+  storage_size        = var.grafana_storage_size
+  storage_class       = var.grafana_storage_class
+
+  depends_on = [module.prometheus]
+}

@@ -143,3 +143,36 @@ output "redis_port" {
   description = "Redis port"
   value       = module.elasticache_redis.port
 }
+
+###########################################################################
+# Prometheus (monitoramento)
+###########################################################################
+
+output "prometheus_namespace" {
+  description = "Kubernetes namespace where Prometheus is deployed"
+  value       = module.prometheus.namespace
+}
+
+output "prometheus_url" {
+  description = "Internal Prometheus URL (for Grafana datasource or port-forward)"
+  value       = module.prometheus.prometheus_url
+}
+
+###############################################################
+# Grafana (monitoramento)
+################################################################
+
+output "grafana_namespace" {
+  description = "Kubernetes namespace where Grafana is deployed"
+  value       = module.grafana.namespace
+}
+
+output "grafana_url" {
+  description = "Internal Grafana URL (para port-forward)"
+  value       = module.grafana.grafana_url
+}
+
+output "grafana_admin_secret_name" {
+  description = "Secret name with Grafana admin credentials (kubectl get secret -n monitoring)"
+  value       = module.grafana.admin_secret_name
+}
