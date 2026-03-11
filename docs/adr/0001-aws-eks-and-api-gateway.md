@@ -11,7 +11,7 @@ O sistema precisa ser escalável, implantado em containers e expor uma API HTTP 
 ## Decisão
 
 - **Orquestração:** usar **Amazon EKS (Kubernetes)** para rodar os microsserviços (Users e Videos) em Pods, com possibilidade de escalar horizontalmente e evoluir para mensageria e workers no mesmo cluster.
-- **Borda:** usar **API Gateway HTTP API (v2)** como único ponto de entrada público. O tráfego é roteado para um **NLB interno** (na VPC) via **VPC Link**, e o NLB encaminha por porta para os NodePorts dos serviços no EKS (Users na porta 8081 → 30081, Videos na 8082 → 30082).
+- **Borda:** usar **API Gateway HTTP API (v2)** como único ponto de entrada público. O tráfego é roteado para um **NLB interno** (na VPC) via **VPC Link**, e o NLB encaminha por porta para os NodePorts dos serviços no EKS (Users na porta 8081 -> 30081, Videos na 8082 -> 30082).
 - **Rede:** VPC com subnets públicas e privadas; EKS e RDS em subnets privadas; sem exposição direta dos Pods ou bancos à internet.
 
 ## Alternativas consideradas

@@ -199,3 +199,24 @@ variable "redis_port" {
   type        = number
   default     = 6379
 }
+
+###############################################################################
+# Notificação (SNS + Lambda + SES) — erro processamento de vídeo
+###############################################################################
+
+variable "notification_topic_name" {
+  description = "SNS topic name for video processing failure events"
+  type        = string
+  default     = "video-processing-failed"
+}
+
+variable "ses_sender_email" {
+  description = "SES sender email (must be verified in SES console; in sandbox, recipient emails must also be verified)"
+  type        = string
+}
+
+variable "notification_email_subject" {
+  description = "Subject line for video processing failure notification email"
+  type        = string
+  default     = "FiapX Videos — Erro no processamento do seu vídeo"
+}

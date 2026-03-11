@@ -258,3 +258,16 @@ module "elasticache_redis" {
   engine_version             = var.redis_engine_version
   port                       = var.redis_port
 }
+
+#############################################################################
+# Notificação — SNS + Lambda + SES (caso erro no processamento de vídeo)
+#############################################################################
+
+module "notification" {
+  source = "./modules/notification"
+
+  project_name      = var.project_name
+  topic_name        = var.notification_topic_name
+  ses_sender_email  = var.ses_sender_email
+  email_subject     = var.notification_email_subject
+}
