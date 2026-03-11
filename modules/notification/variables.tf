@@ -1,5 +1,5 @@
 ###############################################################################
-# Notificação (SNS + Lambda + SES) — erro de processamento de vídeo
+# Notificação (SNS + Lambda + SendGrid) — erro de processamento de vídeo
 ###############################################################################
 
 variable "project_name" {
@@ -13,9 +13,21 @@ variable "topic_name" {
   default     = "video-processing-failed"
 }
 
-variable "ses_sender_email" {
-  description = "Verified SES sender email (identity must be verified in SES; in sandbox, recipient emails must also be verified)"
+variable "sender_email" {
+  description = "Sender email (From). Must be verified in SendGrid Single Sender Verification."
   type        = string
+}
+
+variable "sender_name" {
+  description = "Sender display name (e.g. FiapX Videos)"
+  type        = string
+  default     = "FiapX Videos"
+}
+
+variable "sendgrid_api_key" {
+  description = "SendGrid API key (Mail Send permission). Prefer passing via TF_VAR or -var."
+  type        = string
+  sensitive   = true
 }
 
 variable "email_subject" {

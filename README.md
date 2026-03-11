@@ -312,59 +312,22 @@ Sem auth token por padrão (transit_encryption_enabled = false); at-rest encrypt
 
 ---
 
-## Notificação em caso de erro (SNS + Lambda + SES)
+## Notificação em caso de erro (SNS + Lambda + SendGrid)
 
-Requisito: em caso de falha no processamento de vídeo, o usuário é notificado por e-mail. **Abordagem adotada (Opção 1):** SNS + Lambda + SES em sandbox; remetente e destinatários de teste precisam ser **verificados no SES** (ver abaixo).
+Videos publica no SNS (`user_id`, `user_email`, `video_id`, `error_message`); Lambda envia e-mail via SendGrid para `user_email`. Módulo: `modules/notification`. Output: `notification_sns_topic_arn`.
 
-- **Fluxo:** o worker do serviço **Videos** publica uma mensagem no tópico SNS `hack-fiap233-video-processing-failed` com payload JSON: `user_id`, `user_email`, `video_id`, `error_message`. A **Lambda** é acionada pelo SNS, monta um e-mail HTML estilizado (template FiapX Videos) e envia via **Amazon SES** para `user_email`.
-- **Onde está:** módulo Terraform `modules/notification` (SNS topic, Lambda Node.js 18, subscription SNS→Lambda, identidade SES do remetente, IAM).
-- **Outputs:** `notification_sns_topic_arn` — use no serviço Videos para publicar em caso de falha (ex.: SDK AWS SNS Publish com esse ARN).
+**SendGrid (ambos os cenários):** conta em [sendgrid.com](https://sendgrid.com), remetente verificado (Single Sender), API Key com permissão Mail Send.
 
-Antes do `terraform apply`, defina no `terraform.tfvars` (ou `-var`):
+### Produção (CI/CD)
 
-```hcl
-ses_sender_email = "seu-email@exemplo.com"
-```
+- **Variáveis:** GitHub Secrets `NOTIFICATION_SENDER_EMAIL`, `NOTIFICATION_SENDER_NAME`, `SENDGRID_API_KEY`. O workflow `.github/workflows/terraform.yml` já expõe como `TF_VAR_*`; não é necessário `terraform.tfvars` nem `export` no pipeline.
+- **Não commitar** a API key; usar apenas nas Secrets do repositório.
 
-Esse será o endereço **remetente** (“De”) dos e-mails. Ele precisa existir e será registrado no SES pelo Terraform; a verificação (confirmação por link) é feita manualmente no console, conforme os passos abaixo.
+### Teste local
 
----
-
-### O que fazer após o `terraform apply` para a notificação funcionar
-
-O Terraform cria o tópico SNS, a Lambda e registra o remetente no SES. Em **sandbox**, o SES só entrega e-mails para endereços **verificados**. “Verificado” significa: você cadastrou o e-mail no SES e confirmou o acesso clicando no link que a AWS envia para esse endereço.
-
-Siga estes passos **depois** do `terraform apply`:
-
-#### 1. Verificar o e-mail remetente
-
-O Terraform já criou a identidade no SES com o valor de `ses_sender_email`. A AWS envia um e-mail de confirmação para esse endereço.
-
-1. Acesse o **Console AWS** → **Amazon SES** → **Verified identities** (ou **Identidades**).
-2. Localize o e-mail que você definiu em `ses_sender_email` (status **Pending** ou **Verification pending**).
-3. Abra a caixa de entrada desse e-mail, localize a mensagem da AWS e **clique no link de verificação**.
-4. Volte ao console; o status deve mudar para **Verified**. Enquanto não estiver **Verified**, a Lambda não conseguirá enviar (erro de remetente não verificado).
-
-#### 2. Verificar os e-mails destinatários (sandbox)
-
-No sandbox do SES, você **só pode enviar para endereços que também estejam verificados**. Quem for receber a notificação de “erro no processamento” (o `user_email` do payload) precisa estar verificado.
-
-Para cada e-mail que for usar como destinatário nos testes (o seu, do time ou o e-mail usado no cadastro do usuário no sistema):
-
-1. No console SES → **Verified identities** → **Create identity**.
-2. Escolha **Email address** e informe o endereço (ex.: o e-mail com que o usuário se cadastrou no sistema).
-3. Confirme. A AWS envia um e-mail para esse endereço.
-4. Abra a caixa de entrada e **clique no link de verificação** enviado pela AWS.
-5. Quando o status ficar **Verified**, a Lambda poderá enviar notificações para esse endereço.
-
-**Resumo:** Remetente = verificado (passo 1). Cada destinatário de teste = verificado (passo 2). Só então a notificação funcionará de ponta a ponta.
-
-#### 3. Testar o fluxo (opcional)
-
-Após remetente e destinatários verificados, provar o fluxo:
-
-- Garanta que o serviço **Videos** está publicando no tópico SNS em caso de falha (payload com `user_id`, `user_email`, `video_id`, `error_message`).
-- Use como `user_email` um endereço que você já verificou no passo 2. Dispare uma falha de processamento (ex.: vídeo inválido) e confira se o e-mail chegou na caixa de entrada (e no spam, se aplicável).
+- **Variáveis:** o workflow não roda na sua máquina; é obrigatório passar os valores localmente:
+  - **Opção A:** `terraform.tfvars` com `notification_sender_email`, `notification_sender_name`, `sendgrid_api_key` (não commitar; adicionar a `.gitignore` se quiser).
+  - **Opção B:** `export TF_VAR_notification_sender_email=...`, `TF_VAR_notification_sender_name=...`, `TF_VAR_sendgrid_api_key=...` antes de `terraform apply`.
 
 ---
 
@@ -410,10 +373,15 @@ Quando for necessário implementar uma alteração de schema (nova coluna, tabel
 Todos os passos podem ser automatizados. Configure estas secrets no repositório GitHub em **Settings > Secrets and variables > Actions**:
 
 | Secret | Descrição |
-|---|---|
+|--------|-----------|
 | `AWS_ACCESS_KEY_ID` | Access Key da conta AWS Academy |
 | `AWS_SECRET_ACCESS_KEY` | Secret Key da conta AWS Academy |
 | `AWS_SESSION_TOKEN` | Session Token da AWS Academy (rotaciona a cada sessão) |
+| `NOTIFICATION_SENDER_EMAIL` | E-mail remetente SendGrid (verificado no Single Sender). Usado como `TF_VAR_notification_sender_email`. |
+| `NOTIFICATION_SENDER_NAME` | Nome do remetente (ex.: FiapX Videos). Usado como `TF_VAR_notification_sender_name`. Opcional se usar default. |
+| `SENDGRID_API_KEY` | API key do SendGrid (Mail Send). Usado como `TF_VAR_sendgrid_api_key`. **Não commitar.** |
+
+Para **produção/CI:** o workflow `.github/workflows/terraform.yml` expõe as três últimas como `TF_VAR_*`. Para **teste local**, use `terraform.tfvars` ou `export TF_VAR_*` (ver seção Notificação acima).
 
 ### Workflow — Provisionar Infraestrutura
 
@@ -436,6 +404,10 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
   AWS_REGION: us-east-1
+  # Variáveis do Terraform para notificação (SendGrid)
+  TF_VAR_notification_sender_email: ${{ secrets.NOTIFICATION_SENDER_EMAIL }}
+  TF_VAR_notification_sender_name: ${{ secrets.NOTIFICATION_SENDER_NAME }}
+  TF_VAR_sendgrid_api_key: ${{ secrets.SENDGRID_API_KEY }}
 
 jobs:
   terraform:
@@ -558,7 +530,9 @@ aws secretsmanager get-secret-value --secret-id hack-fiap233/users/db-credential
 | `rds_instance_class` | `db.t3.micro` | Classe da instancia RDS |
 | `rds_engine_version` | `16.6` | Versao do PostgreSQL |
 | `notification_topic_name` | `video-processing-failed` | Nome do topico SNS para falhas de processamento |
-| `ses_sender_email` | — (obrigatorio) | E-mail remetente SES (deve ser verificado no console SES) |
+| `notification_sender_email` | — (obrigatorio) | E-mail remetente (verificado no SendGrid Single Sender) |
+| `notification_sender_name` | `FiapX Videos` | Nome exibido como remetente |
+| `sendgrid_api_key` | — (obrigatorio) | API key do SendGrid (Mail Send). Passar por TF_VAR ou -var; nao commitar. |
 | `notification_email_subject` | `FiapX Videos — Erro no processamento do seu vídeo` | Assunto do e-mail de notificacao |
 
 ## AWS Academy

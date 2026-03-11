@@ -11,7 +11,7 @@ resource "aws_sns_topic" "video_failed" {
 }
 
 ##########################################################################
-# Lambda — envia e-mail via SES (template HTML)
+# Lambda — envia e-mail via SendGrid API (template HTML)
 ##########################################################################
 
 data "archive_file" "lambda_zip" {
@@ -23,15 +23,17 @@ data "archive_file" "lambda_zip" {
 resource "aws_lambda_function" "video_failed_notify" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "${var.project_name}-video-failed-notify"
-  role             = aws_iam_role.lambda_ses.arn
-  handler          = "index.handler"
+  role            = aws_iam_role.lambda_notify.arn
+  handler         = "index.handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  runtime          = "nodejs18.x"
-  timeout          = 30
+  runtime         = "nodejs18.x"
+  timeout         = 30
 
   environment {
     variables = {
-      SES_SENDER_EMAIL = var.ses_sender_email
+      SENDGRID_API_KEY = var.sendgrid_api_key
+      SENDER_EMAIL     = var.sender_email
+      SENDER_NAME      = var.sender_name
       EMAIL_SUBJECT    = var.email_subject
     }
   }
@@ -63,19 +65,11 @@ resource "aws_sns_topic_subscription" "lambda" {
   endpoint  = aws_lambda_function.video_failed_notify.arn
 }
 
-###############################################################################
-# SES — identidade do remetente (e-mail a ser verificado no SES)
-###############################################################################
+#######################################################################
+# IAM — Lambda (logs apenas; SendGrid usa API key via env)
+########################################################################
 
-resource "aws_ses_email_identity" "sender" {
-  email = var.ses_sender_email
-}
-
-###############################################################################
-# IAM — Lambda pode enviar e-mail via SES
-###############################################################################
-
-resource "aws_iam_role" "lambda_ses" {
+resource "aws_iam_role" "lambda_notify" {
   name = "${var.project_name}-video-failed-notify-lambda"
 
   assume_role_policy = jsonencode({
@@ -92,17 +86,12 @@ resource "aws_iam_role" "lambda_ses" {
   })
 }
 
-resource "aws_iam_role_policy" "lambda_ses" {
-  name   = "ses-send-email"
-  role   = aws_iam_role.lambda_ses.id
+resource "aws_iam_role_policy" "lambda_logs" {
+  name   = "logs"
+  role   = aws_iam_role.lambda_notify.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      {
-        Effect   = "Allow"
-        Action   = "ses:SendEmail"
-        Resource = "*"
-      },
       {
         Effect   = "Allow"
         Action   = [

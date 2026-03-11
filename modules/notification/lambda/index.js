@@ -1,10 +1,12 @@
 /**
  * Lambda: subscribed to SNS topic video-processing-failed.
  * Payload: { user_id, user_email, video_id, error_message }
- * Sends styled HTML email via SES (default: notification for all failures).
+ * Sends styled HTML email via SendGrid API (no recipient verification required).
  */
-const AWS = require('aws-sdk');
-const ses = new AWS.SES({ apiVersion: '2010-12-01' });
+const https = require('https');
+
+const SENDGRID_API_HOST = 'api.sendgrid.com';
+const SENDGRID_PATH = '/v3/mail/send';
 
 const HTML_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -64,7 +66,54 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
+function sendSendGridEmail(apiKey, fromEmail, fromName, toEmail, subject, html) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      personalizations: [{ to: [{ email: toEmail }] }],
+      from: { email: fromEmail, name: fromName || 'FiapX Videos' },
+      subject,
+      content: [{ type: 'text/html', value: html }]
+    });
+
+    const options = {
+      hostname: SENDGRID_API_HOST,
+      path: SENDGRID_PATH,
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body, 'utf8')
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve();
+        } else {
+          reject(new Error(`SendGrid ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(body, 'utf8');
+    req.end();
+  });
+}
+
 exports.handler = async (event) => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const senderEmail = process.env.SENDER_EMAIL;
+  const senderName = process.env.SENDER_NAME || 'FiapX Videos';
+  const subject = process.env.EMAIL_SUBJECT || 'FiapX Videos — Erro no processamento do seu vídeo';
+
+  if (!apiKey || !senderEmail) {
+    console.error('Missing SENDGRID_API_KEY or SENDER_EMAIL');
+    return { statusCode: 500 };
+  }
+
   for (const record of event.Records || []) {
     if (record.Sns && record.Sns.Message) {
       let payload;
@@ -85,18 +134,13 @@ exports.handler = async (event) => {
         .replace(/\{\{video_id\}\}/g, escapeHtml(videoId))
         .replace(/\{\{error_message\}\}/g, errorMsg);
 
-      const params = {
-        Source: process.env.SES_SENDER_EMAIL,
-        Destination: { ToAddresses: [user_email] },
-        Message: {
-          Subject: { Data: process.env.EMAIL_SUBJECT || 'FiapX Videos — Erro no processamento do seu vídeo', Charset: 'UTF-8' },
-          Body: {
-            Html: { Data: html, Charset: 'UTF-8' }
-          }
-        }
-      };
-      await ses.sendEmail(params).promise();
-      console.log('Email sent to', user_email, 'for video', video_id);
+      try {
+        await sendSendGridEmail(apiKey, senderEmail, senderName, user_email, subject, html);
+        console.log('Email sent to', user_email, 'for video', video_id);
+      } catch (err) {
+        console.error('SendGrid error:', err.message);
+        throw err;
+      }
     }
   }
   return { statusCode: 200 };

@@ -201,7 +201,7 @@ variable "redis_port" {
 }
 
 ###############################################################################
-# Notificação (SNS + Lambda + SES) — erro processamento de vídeo
+# Notificação (SNS + Lambda + SendGrid) — erro processamento de vídeo
 ###############################################################################
 
 variable "notification_topic_name" {
@@ -210,9 +210,21 @@ variable "notification_topic_name" {
   default     = "video-processing-failed"
 }
 
-variable "ses_sender_email" {
-  description = "SES sender email (must be verified in SES console; in sandbox, recipient emails must also be verified)"
+variable "notification_sender_email" {
+  description = "Sender email (From)."
   type        = string
+}
+
+variable "notification_sender_name" {
+  description = "Sender display name"
+  type        = string
+  default     = "FiapX Videos"
+}
+
+variable "sendgrid_api_key" {
+  description = "SendGrid API key (Mail Send). Pass via TF_VAR_sendgrid_api_key or -var"
+  type        = string
+  sensitive   = true
 }
 
 variable "notification_email_subject" {
